@@ -27,12 +27,10 @@ spec:
 				container('gradle') {
 					script {
 						withMaven(maven: 'MAVEN-3.6.3') {
-                            FAILED_STAGE=env.STAGE_NAME
+							FAILED_STAGE=env.STAGE_NAME
 							echo 'I am executing build and unit test'
 							echo "Use the line below when we switch to the actual repo"
 							// sh 'gradle clean build'
-							echo "Remove the line below when we switch to the actual repo"
-							sh 'mvn -f sample-java-app/pom.xml clean package'
 							propfile = readProperties(file: './project.properties')	
 							if (propfile['javadoc'] == "true") {
 								sh 'mvn javadoc:aggregate'
@@ -61,8 +59,6 @@ spec:
                                 echo 'I am executing code quality using sonarqube'
                                 echo ' Update the line below when we switch to actual EJB repo'	
                                 // sh './gradle Sonarqube'
-                                echo ' Remove the line below after we switch to EJB repo'
-                                sh "mvn -f sample-java-app/pom.xml -Dsonar.projectName=EJB_${env.GIT_BRANCH} -Dsonar.projectKey=EJB_sample  sonar:sonar"
                             }
                             sleep(60)
                             timeout(time: 1, unit: 'MINUTES') {
@@ -80,9 +76,7 @@ spec:
 					script {
                         withMaven(maven: 'MAVEN-3.6.3') {
                             FAILED_STAGE=env.STAGE_NAME
-							echo 'I am pushing the artifact with unique name showing the branch from which it is generated, to Archiva'
-							echo 'Replace the next 4 lines to reflect the EJB artifact and push it to archiva'
-							echo 'Use the 5 lines below when we switch to the actual EJB repo'
+							echo 'Use the lines below when we switch to the actual EJB repo'
 							/* 
                             echo 'copying the ear file from the individual target directories and copying it to artifacts directory'
                             rm -rf $WORKSPACE/artifacts
