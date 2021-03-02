@@ -21,8 +21,8 @@ spec:
 """
         }
     }
-    stages {
-        stage('Build & Unit Test') {
+	stages {
+		stage('Build & Unit Test') {
 			steps {
 				container('gradle') {
 					script {
@@ -48,55 +48,55 @@ spec:
 				}
 			}
 		}
-        stage('Code Quality') {
+		stage('Code Quality') {
 			when { expression {propfile['code_quality'] == "true" }}
 			steps {
 				container('gradle') {
-                    script {
-                        withMaven(maven: 'MAVEN-3.6.3') {
-                            withSonarQubeEnv(installationName: 'Sonarqube') {
-                                FAILED_STAGE=env.STAGE_NAME
-                                echo 'I am executing code quality using sonarqube'
-                                echo ' Update the line below when we switch to actual EJB repo'	
-                                // sh './gradle Sonarqube'
-                            }
-                            sleep(60)
-                            timeout(time: 1, unit: 'MINUTES') {
-                                waitForQualityGate abortPipeline: true
-                            } 
-                        }
-                    }
-				}
-			}
-		}
-        stage("Publish Package") {
-			when { expression {env.GIT_BRANCH == 'dev' || env.GIT_BRANCH == 'release'|| propfile['feature_deploy'] == "true" }}
-			steps {
-				container('gradle') {
 					script {
-                        withMaven(maven: 'MAVEN-3.6.3') {
-                            FAILED_STAGE=env.STAGE_NAME
-							echo 'Use the lines below when we switch to the actual EJB repo'
-							/* 
-                            echo 'copying the ear file from the individual target directories and copying it to artifacts directory'
-                            rm -rf $WORKSPACE/artifacts
-                            mkdir -p $WORKSPACE/artifacts
-                            cd $WORKSPACE
-                            cp -r dist/libs/EJBIntegrationEAR.ear artifacts/
-                            cp -r deployment/* artifacts/
-                            */
+						withMaven(maven: 'MAVEN-3.6.3') {
+							withSonarQubeEnv(installationName: 'Sonarqube') {
+								FAILED_STAGE=env.STAGE_NAME
+								echo 'I am executing code quality using sonarqube'
+								echo ' Update the line below when we switch to actual EJB repo'	
+								// sh './gradle Sonarqube'
+							}
+							sleep(60)
+							timeout(time: 1, unit: 'MINUTES') {
+								waitForQualityGate abortPipeline: true
+							} 
 						}
 					}
 				}
 			}
 		}
-        stage("Deploy") {
+		stage("Publish Package") {
 			when { expression {env.GIT_BRANCH == 'dev' || env.GIT_BRANCH == 'release'|| propfile['feature_deploy'] == "true" }}
 			steps {
 				container('gradle') {
 					script {
 						withMaven(maven: 'MAVEN-3.6.3') {
-                            FAILED_STAGE=env.STAGE_NAME
+							FAILED_STAGE=env.STAGE_NAME
+							echo 'Use the lines below when we switch to the actual EJB repo'
+							/* 
+							echo 'copying the ear file from the individual target directories and copying it to artifacts directory'
+							rm -rf $WORKSPACE/artifacts
+							mkdir -p $WORKSPACE/artifacts
+							cd $WORKSPACE
+							cp -r dist/libs/EJBIntegrationEAR.ear artifacts/
+							cp -r deployment/* artifacts/
+							*/
+						}
+					}
+				}
+			}
+		}
+		stage("Deploy") {
+			when { expression {env.GIT_BRANCH == 'dev' || env.GIT_BRANCH == 'release'|| propfile['feature_deploy'] == "true" }}
+			steps {
+				container('gradle') {
+					script {
+						withMaven(maven: 'MAVEN-3.6.3') {
+							FAILED_STAGE=env.STAGE_NAME
 							if (propfile['feature_deploy'] == "true" ) {
 								USERNAME=propfile['target_user']
 								HOSTS=propfile['target_host']
@@ -109,81 +109,81 @@ spec:
 								USERNAME=propfile['target_user']
 								HOSTS=propfile['target_host']
 							}
-                            HOSTS.tokenize(',').each { HOSTNAME ->
-                                echo 'Use the lines below when we switch to the actual EJB repo'
-                                /*
-                                mkdir -p $WORKSPACE/artifacts
+							HOSTS.tokenize(',').each { HOSTNAME ->
+								echo 'Use the lines below when we switch to the actual EJB repo'
+								/*
+								mkdir -p $WORKSPACE/artifacts
 
-                                cp -r /c/Windows/System32/config/systemprofile/AppData/Local/Jenkins/.jenkins/workspace/DevOps_EJB_Build/artifacts/* $WORKSPACE/artifacts/
+								cp -r /c/Windows/System32/config/systemprofile/AppData/Local/Jenkins/.jenkins/workspace/DevOps_EJB_Build/artifacts/* $WORKSPACE/artifacts/
 
-                                scp -rp $WORKSPACE/artifacts/propfile['ear_file'] ${USERNAME}@${HOSTNAME}:propfile['deploy_dir']/
-                                scp -rp $WORKSPACE/artifacts/propfile['target_env']/propfile['migration_file'] ${USERNAME}@${HOSTNAME}:propfile['deploy_dir']/
-                                scp -rp $WORKSPACE/artifacts/propfile['target_env']/propfile['properties_file'] ${USERNAME}@${HOSTNAME}:propfile['deploy_dir']/
-                                scp -rp $WORKSPACE/artifacts/propfile['target_env']/propfile['log4j_file'] ${USERNAME}@${HOSTNAME}:propfile['deploy_dir']/
+								scp -rp $WORKSPACE/artifacts/propfile['ear_file'] ${USERNAME}@${HOSTNAME}:propfile['deploy_dir']/
+								scp -rp $WORKSPACE/artifacts/propfile['target_env']/propfile['migration_file'] ${USERNAME}@${HOSTNAME}:propfile['deploy_dir']/
+								scp -rp $WORKSPACE/artifacts/propfile['target_env']/propfile['properties_file'] ${USERNAME}@${HOSTNAME}:propfile['deploy_dir']/
+								scp -rp $WORKSPACE/artifacts/propfile['target_env']/propfile['log4j_file'] ${USERNAME}@${HOSTNAME}:propfile['deploy_dir']/
 
-                                ssh /bin/chmod 666 propfile['deploy_dir']/propfile['ear_file']
-                                ssh /bin/chmod 666 propfile['deploy_dir']/propfile['migration_file']
-                                ssh /bin/chmod 666 propfile['deploy_dir']/propfile['properties_file']
-                                ssh /bin/chmod 666 propfile['deploy_dir']/propfile['log4j_file']
+								ssh /bin/chmod 666 propfile['deploy_dir']/propfile['ear_file']
+								ssh /bin/chmod 666 propfile['deploy_dir']/propfile['migration_file']
+								ssh /bin/chmod 666 propfile['deploy_dir']/propfile['properties_file']
+								ssh /bin/chmod 666 propfile['deploy_dir']/propfile['log4j_file']
 
-                                ssh cd propfile['deploy_dir'];/usr/local/was/bin/wasMigrate.s -m EcomEjbProxy.mig -r `date "+%Y%m%d%H%M"`
-                                */
-                            }
+								ssh cd propfile['deploy_dir'];/usr/local/was/bin/wasMigrate.s -m EcomEjbProxy.mig -r `date "+%Y%m%d%H%M"`
+								*/
+							}
 						}	
 					}
 				}
 			}
 		}
-        stage('Post Deploy Tests') {
-            when { expression {env.GIT_BRANCH == 'dev' || env.GIT_BRANCH == 'release'|| propfile['feature_deploy'] == "true" }}
-            parallel {
-                stage('Smoke Test') {
-                    steps {
-                        script {
-                            FAILED_STAGE=env.STAGE_NAME
-                            echo "I am running Smoke Test here"
-                        }
-                    }
-                }
-                stage('Security Test') {
-                    steps {
-                        container('gradle') {
-                            script {
-                                withMaven(maven: 'MAVEN-3.6.3') {
-                                    FAILED_STAGE=env.STAGE_NAME
-                                    echo 'I am running Security Test here'
-                                }
-                            }
-                        }
-                    }
-                }
-            }  
-        }
-    }
-    post {
-  		always {
+		stage('Post Deploy Tests') {
+			when { expression {env.GIT_BRANCH == 'dev' || env.GIT_BRANCH == 'release'|| propfile['feature_deploy'] == "true" }}
+			parallel {
+				stage('Smoke Test') {
+					steps {
+						script {
+							FAILED_STAGE=env.STAGE_NAME
+							echo "I am running Smoke Test here"
+						}
+					}
+				}
+				stage('Security Test') {
+					steps {
+						container('gradle') {
+							script {
+								withMaven(maven: 'MAVEN-3.6.3') {
+									FAILED_STAGE=env.STAGE_NAME
+									echo 'I am running Security Test here'
+								}
+							}
+						}
+					}
+				}
+			}  
+		}
+	}
+	post {
+		always {
 			script {
 				if (propfile['javadoc'] == "true") {
 					javadoc(javadocDir: "/$WORKSPACE/target/site/apidocs", keepAll: true)
 				}
-		  	}
-	  	}
-        failure {
-            /*
-            mail bcc: '', 
-            body: "<b>Example</b><br>\n<br>Project: ${env.JOB_NAME} <br>Build Number: ${env.BUILD_NUMBER} <br> URL de build: ${env.BUILD_URL}", 
-            cc: '', 
-            charset: 'UTF-8', 
-            from: '', 
-            mimeType: 'text/html', 
-            replyTo: '', 
-            subject: "ERROR CI: Project name -> ${env.JOB_NAME}", 
-            to: "foo@foomail.com";
-            */
-            echo 'I am sending a notification with failure in the ${FAILED_STAGE} stage
-        }
-	  	success {
-		  	echo 'I am sending a notification with success'
-	  	}
-  	}
+			}
+		}
+		failure {
+			/*
+			mail bcc: '', 
+			body: "<b>Example</b><br>\n<br>Project: ${env.JOB_NAME} <br>Build Number: ${env.BUILD_NUMBER} <br> URL de build: ${env.BUILD_URL}", 
+			cc: '', 
+			charset: 'UTF-8', 
+			from: '', 
+			mimeType: 'text/html', 
+			replyTo: '', 
+			subject: "ERROR CI: Project name -> ${env.JOB_NAME}", 
+			to: "foo@foomail.com";
+			*/
+			echo 'I am sending a notification with failure in the ${FAILED_STAGE} stage
+		}
+		success {
+			echo 'I am sending a notification with success'
+		}
+	}
 }
