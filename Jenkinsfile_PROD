@@ -99,7 +99,8 @@ spec:
 							FAILED_STAGE=env.STAGE_NAME
 							if (propfile['feature_deploy'] == "true" ) {
 								USERNAME=propfile['target_user']
-								HOSTS=propfile['target_host']
+								//HOSTS=propfile['target_host']
+								HOSTS=propfile['testing_host']
 							}
 							if (env.GIT_BRANCH == 'dev' ) {
 								USERNAME=propfile['target_user']
@@ -111,6 +112,7 @@ spec:
 							}
 							HOSTS.tokenize(',').each { HOSTNAME ->
 								echo 'Use the lines below when we switch to the actual EJB repo'
+								echo "${HOSTNAME}"
 								/*
 								mkdir -p $WORKSPACE/artifacts
 
