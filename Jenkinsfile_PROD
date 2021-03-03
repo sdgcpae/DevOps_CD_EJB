@@ -27,7 +27,7 @@ spec:
 				container('gradle') {
 					script {
 						withMaven(maven: 'MAVEN-3.6.3') {
-							FAILED_STAGE=env.STAGE_NAME
+							//FAILED_STAGE=env.STAGE_NAME
 							echo 'I am executing build and unit test'
 							echo "Use the line below when we switch to the actual repo"
 							// sh 'gradle clean build'
@@ -55,7 +55,7 @@ spec:
 					script {
 						withMaven(maven: 'MAVEN-3.6.3') {
 							withSonarQubeEnv(installationName: 'Sonarqube') {
-								FAILED_STAGE=env.STAGE_NAME
+								//FAILED_STAGE=env.STAGE_NAME
 								echo 'I am executing code quality using sonarqube'
 								echo ' Update the line below when we switch to actual EJB repo'	
 								// sh './gradle Sonarqube'
@@ -75,7 +75,7 @@ spec:
 				container('gradle') {
 					script {
 						withMaven(maven: 'MAVEN-3.6.3') {
-							FAILED_STAGE=env.STAGE_NAME
+							//FAILED_STAGE=env.STAGE_NAME
 							echo 'Use the lines below when we switch to the actual EJB repo'
 							/* 
 							echo 'copying the ear file from the individual target directories and copying it to artifacts directory'
@@ -96,7 +96,7 @@ spec:
 				container('gradle') {
 					script {
 						withMaven(maven: 'MAVEN-3.6.3') {
-							FAILED_STAGE=env.STAGE_NAME
+							//FAILED_STAGE=env.STAGE_NAME
 							if (propfile['feature_deploy'] == "true" ) {
 								USERNAME=propfile['target_user']
 								//HOSTS=propfile['target_host']
@@ -142,7 +142,7 @@ spec:
 				stage('Smoke Test') {
 					steps {
 						script {
-							FAILED_STAGE=env.STAGE_NAME
+							//FAILED_STAGE=env.STAGE_NAME
 							echo "I am running Smoke Test here"
 						}
 					}
@@ -152,7 +152,7 @@ spec:
 						container('gradle') {
 							script {
 								withMaven(maven: 'MAVEN-3.6.3') {
-									FAILED_STAGE=env.STAGE_NAME
+									//FAILED_STAGE=env.STAGE_NAME
 									echo 'I am running Security Test here'
 								}
 							}
