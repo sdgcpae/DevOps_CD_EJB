@@ -1,11 +1,13 @@
 def propfile
 def FAILED_STAGE
+def allJob = env.JOB_NAME.tokenize('/') as String[];
+def projectName = allJob[2];
 pipeline {
 	agent {
-        kubernetes {
-			    label 'SpringBootRestApp'
-			    defaultContainer 'jnlp'
-			    yaml """
+    		kubernetes {
+			label 'SpringBootRestApp'
+			defaultContainer 'jnlp'
+			yaml """
 apiVersion: v1
 kind: Pod
 metadata:
@@ -19,8 +21,8 @@ spec:
     - cat
     tty: true
 """
-        }
-    }
+		}
+	}
 	stages {
 		stage('Build & Unit Test') {
 			steps {
@@ -28,21 +30,12 @@ spec:
 					script {
 						withMaven(maven: 'MAVEN-3.6.3') {
 							FAILED_STAGE=env.STAGE_NAME
-							echo 'I am executing build and unit test'
-							echo "Use the line below when we switch to the actual repo"
-							// sh 'gradle clean build'
+
 							propfile = readProperties(file: './project.properties')	
 							if (propfile['javadoc'] == "true") {
 								sh 'mvn javadoc:aggregate'
 							}
-							if (propfile['jacoco'] == "true") {
-								jacoco( 
-									execPattern: '**/*.exec',
-									classPattern: '**/*.class',
-									sourcePattern: '**/*.java',
-									exclusionPattern: '**/test*'
-								)
-							}
+
 						}	
 					}
 				}
@@ -60,7 +53,7 @@ spec:
 								echo ' Update the line below when we switch to actual EJB repo'	
 								// sh './gradle Sonarqube'
 							}
-							sleep(60)
+							//sleep(60)
 							timeout(time: 1, unit: 'MINUTES') {
 								waitForQualityGate abortPipeline: true
 							} 
@@ -165,22 +158,22 @@ spec:
 	post {
 		always {
 			script {
-				if (propfile['javadoc'] == "true") {
+				/*if (propfile['javadoc'] == "true") {
 					javadoc(javadocDir: "/$WORKSPACE/target/site/apidocs", keepAll: true)
-				}
+				}*/
 			}
 		}
 		failure {
 			/*
 			mail bcc: '', 
-			body: "<b>Example</b><br>\n<br>Project: ${env.JOB_NAME} <br>Build Number: ${env.BUILD_NUMBER} <br> URL de build: ${env.BUILD_URL}", 
+			body: "<b>Example</b><br>\n<br>Project: ${projectName} <br>Build Number: ${env.BUILD_NUMBER} <br> URL de build: ${env.BUILD_URL}", 
 			cc: '', 
 			charset: 'UTF-8', 
-			from: '', 
+			from: 'Jenkins', 
 			mimeType: 'text/html', 
 			replyTo: '', 
-			subject: "ERROR CI: Project name -> ${env.JOB_NAME}", 
-			to: "foo@foomail.com";
+			subject: "ERROR: Project name -> ${env.JOB_NAME}", 
+			to: "sd.gcp.ae@gmail.com
 			*/
 			echo "I am sending a notification with failure in the ${FAILED_STAGE} stage"
 		}
