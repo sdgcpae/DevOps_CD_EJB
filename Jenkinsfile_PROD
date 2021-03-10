@@ -1,5 +1,4 @@
 def propfile
-def FAILED_STAGE
 def allJob = env.JOB_NAME.tokenize('/') as String[];
 def projectName = allJob[2];
 pipeline {
@@ -29,13 +28,23 @@ spec:
 				container('gradle') {
 					script {
 						withMaven(maven: 'MAVEN-3.6.3') {
-							FAILED_STAGE=env.STAGE_NAME
-
-							propfile = readProperties(file: './project.properties')	
+							echo 'I am executing build and unit test'
+							echo 'use the command below when we switch to EJB source'
+							//sh 'gradle --no-daemon clean build'
+							echo 'Add gradle clean and build for EJB and comment this step' 
+							sh "mvn -Drevision=${projectName}-${env.GIT_BRANCH}-build-${env.BUILD_NUMBER}-SNAPSHOT -f sample-java-app/pom.xml clean package"
+							propfile = readProperties(file: './project.properties')
 							if (propfile['javadoc'] == "true") {
 								sh 'mvn javadoc:aggregate'
 							}
-
+							if (propfile['jacoco'] == "true") {
+								jacoco( 
+									execPattern: '**/*.exec',
+									classPattern: '**/*.class',
+									sourcePattern: '**/*.java',
+									exclusionPattern: '**/test*'
+								)
+							}
 						}	
 					}
 				}
@@ -45,19 +54,18 @@ spec:
 			when { expression {propfile['code_quality'] == "true" }}
 			steps {
 				container('gradle') {
-					script {
-						withMaven(maven: 'MAVEN-3.6.3') {
-							withSonarQubeEnv(installationName: 'Sonarqube') {
-								FAILED_STAGE=env.STAGE_NAME
-								echo 'I am executing code quality using sonarqube'
-								echo ' Update the line below when we switch to actual EJB repo'	
-								// sh './gradle Sonarqube'
-							}
-							//sleep(60)
-							timeout(time: 1, unit: 'MINUTES') {
-								waitForQualityGate abortPipeline: true
-							} 
+					withMaven(maven: 'MAVEN-3.6.3') {
+						withSonarQubeEnv(installationName: 'Sonarqube') {
+							echo 'I am executing code quality using sonarqube'
+							echo "Change the line below when we switch to the actual EJB repo"
+							// sh 'gradle SonarQube'
+							echo 'Remove the line below when we switch to the actual EJB repo'
+							sh "mvn -f sample-java-app/pom.xml -Dsonar.projectName=EJB_${env.GIT_BRANCH} -Dsonar.projectKey=EJB_sample sonar:sonar"
 						}
+						sleep(60)
+						timeout(time: 1, unit: 'MINUTES') {
+						waitForQualityGate abortPipeline: true
+						} 
 					}
 				}
 			}
@@ -68,16 +76,19 @@ spec:
 				container('gradle') {
 					script {
 						withMaven(maven: 'MAVEN-3.6.3') {
-							FAILED_STAGE=env.STAGE_NAME
-							echo 'Use the lines below when we switch to the actual EJB repo'
-							/* 
-							echo 'copying the ear file from the individual target directories and copying it to artifacts directory'
-							rm -rf $WORKSPACE/artifacts
-							mkdir -p $WORKSPACE/artifacts
-							cd $WORKSPACE
-							cp -r dist/libs/EJBIntegrationEAR.ear artifacts/
-							cp -r deployment/* artifacts/
+							echo 'I am pushing the artifact with unique name showing the branch from which it is generated, to Archiva'
+							echo 'Replace the next 4 lines to reflect the EJB artifact and push it to archiva'
+							echo 'Use the 5 lines below when we switch to the actual EJB repo' 
+							/* echo 'copying the jar and war files from the individual target directories and copying it to artifacts directory '
+							sh "mkdir -p $WORKSPACE/artifacts"
+							sh "cp /dist/libs/* $WORKSPACE/artifacts/" 
+							echo 'create a tar file on the Jenkins server'
+							sh "cd $WORKSPACE/artifacts/ && tar -cvzf artifact.tar * && md5sum artifact.tar archiveArtifacts artifacts: 'artifacts/*.tar', fingerprint: true 
 							*/
+							echo 'Remove the 3 lines below when we switch to the actual EJB repo'
+							// sh "mv sample-java-app/target/sample-0.0.1-SNAPSHOT.jar sample-java-app/target/EJB_build-${BUILD_NUMBER}_branch-${env.GIT_BRANCH}.jar"
+							sh 'ls -lrt sample-java-app/target/'
+							sh "mvn clean deploy -Drevision=${projectName}-${env.GIT_BRANCH}-build-${env.BUILD_NUMBER}-SNAPSHOT -Dmaven.test.skip=true"
 						}
 					}
 				}
@@ -89,40 +100,40 @@ spec:
 				container('gradle') {
 					script {
 						withMaven(maven: 'MAVEN-3.6.3') {
-							FAILED_STAGE=env.STAGE_NAME
 							if (propfile['feature_deploy'] == "true" ) {
-								USERNAME=propfile['target_user']
-								//HOSTS=propfile['target_host']
-								HOSTS=propfile['testing_host']
+								USERNAME=propfile['USERNAME_FEATURE_DEPLOY']
+								HOSTS=propfile['HOSTS_FEATURE_DEPLOY']
 							}
 							if (env.GIT_BRANCH == 'dev' ) {
-								USERNAME=propfile['target_user']
-								HOSTS=propfile['target_host']
+								USERNAME=propfile['USERNAME_DEV_DEPLOY']
+								HOSTS=propfile['HOSTS_DEV_DEPLOY']
 							}
 							if (env.GIT_BRANCH == 'release') {
-								USERNAME=propfile['target_user']
-								HOSTS=propfile['target_host']
+								USERNAME=propfile['USERNAME_RELEASE_DEPLOY']
+								HOSTS=propfile['HOSTS_RELEASE_DEPLOY']
 							}
 							HOSTS.tokenize(',').each { HOSTNAME ->
-								echo 'Use the lines below when we switch to the actual EJB repo'
-								echo "${HOSTNAME}"
-								/*
-								mkdir -p $WORKSPACE/artifacts
-
-								cp -r /c/Windows/System32/config/systemprofile/AppData/Local/Jenkins/.jenkins/workspace/DevOps_EJB_Build/artifacts/* $WORKSPACE/artifacts/
-
-								scp -rp $WORKSPACE/artifacts/propfile['ear_file'] ${USERNAME}@${HOSTNAME}:propfile['deploy_dir']/
-								scp -rp $WORKSPACE/artifacts/propfile['target_env']/propfile['migration_file'] ${USERNAME}@${HOSTNAME}:propfile['deploy_dir']/
-								scp -rp $WORKSPACE/artifacts/propfile['target_env']/propfile['properties_file'] ${USERNAME}@${HOSTNAME}:propfile['deploy_dir']/
-								scp -rp $WORKSPACE/artifacts/propfile['target_env']/propfile['log4j_file'] ${USERNAME}@${HOSTNAME}:propfile['deploy_dir']/
-
-								ssh /bin/chmod 666 propfile['deploy_dir']/propfile['ear_file']
-								ssh /bin/chmod 666 propfile['deploy_dir']/propfile['migration_file']
-								ssh /bin/chmod 666 propfile['deploy_dir']/propfile['properties_file']
-								ssh /bin/chmod 666 propfile['deploy_dir']/propfile['log4j_file']
-
-								ssh cd propfile['deploy_dir'];/usr/local/was/bin/wasMigrate.s -m EcomEjbProxy.mig -r `date "+%Y%m%d%H%M"`
+								echo 'I am deploying the artifact into the target environment ${HOSTNAME} as user ${USERNAME}'
+								echo 'Replace all the lines below for EJB and add the parameters to propfile and make refrences below'
+								echo 'Accom logic for multiple env and mult servers in each env based on the branch name'
+								echo 'shutting down the tomcat ESB server'
+								/* sh 'ssh ${USERNAME}@${HOSTNAME} "$ESB_BIN_PATH stop || sleep 20"'
+								echo 'force stop any remaining mule process'
+								sh 'ssh ${USERNAME}@${HOSTNAME} "if [[ $(ps aux | grep /opt/mule/latest/ | grep -vc grep)  > 0 ]]; then "kill -9 $(ps -ef|pgrep -f "/opt/mule/latest/bin")"; else echo "do nothing"; fi"' 
 								*/
+								echo 'tomcat server stopped'
+								echo 'copying the tar file from jenkins to deployment directory on app and remove the old folders and untarring the new jar and war files'
+								/* sh 'scp -rp $WORKSPACE/artifacts/artifact.tar $DEPLOYMENT_USER@$DEPOYMENT_SERVER:$DEPLOYMENT_STAGE_DIR/'
+								sh 'ssh ${USERNAME}@${HOSTNAME} "cd $DEPLOYMENT_STAGE_DIR && rm -rf *.war *.jar"'
+								sh 'ssh ${USERNAME}@${HOSTNAME} "cd $DEPLOYMENT_STAGE_DIR && tar -xvzf artifact.tar && rm -rf *.jar"'
+								sh 'ssh ${USERNAME}@${HOSTNAME} "cd $}DEPLOYMENT_DIR} && rm -rf ${ESB_WAR_FOLDERS} && cp -rp ${DEPLOYMENT_STAGE_DIR}/*.war $DEPLOYMENT_DIR"' 
+								*/
+								echo 'Deployment has been completed'
+								echo 'starting the tomcat ESB server'
+								/* sh 'ssh ${USERNAME}@${HOSTNAME} "${ESB_BIN_PATH start}"'
+								sh 'ssh ${USERNAME}@${HOSTNAME} "sleep 20"' 
+								*/
+								echo 'tomcat server started'
 							}
 						}	
 					}
@@ -134,9 +145,46 @@ spec:
 			parallel {
 				stage('Smoke Test') {
 					steps {
-						script {
-							FAILED_STAGE=env.STAGE_NAME
-							echo "I am running Smoke Test here"
+						container('gradle') {
+							script {
+								withMaven(maven: 'MAVEN-3.6.3') {
+									echo "I am executing Smoke Test on target dev environment post deployment"
+									/*RESP=`curl -X GET "${bamboo.uri}/RequestsRunning" -H "accept: application/xml" -H "authorization: bearer lR0AA2qfq7v9Ry96vDAgqcer1GPVd5yStmv1_aJVFS43rk06EytB7WsS0_owoiXIgpOXmZVEfkY4ST0JwHtRBk7RH0QRaldWtQT8udC0VdimdGx38RddY2sGaeeF0t9Aflr5rh1Jc_EUfkNK8YrKVxQ6kxB05aCe46CD2fkognv7TiJATmht-ycUjEsd_oy8jH5EK9fmn9eL-wXavNTQcEdsUmFm3-2r3IJDzMK7XCa74qu353yOKLvVyZ1yYQBnc1_fY5GS1BDrFLUZprxpAS30lGEu-d_JTTOQ989UJtIEB3cZzDkIQzeqdYBGCsiDdjdHo2DC1FK2kVPyBITTbQ"`
+									echo "The response for current execution status is: $RESP"
+									if [ "$RESP" != "[]" ];
+									then
+									echo "There is a test executing currently in Worksoft. Hence, not proceeding with the execution of Worksoft test cases."
+									exit 1
+									else
+									echo "There are no tests executing right now. Hence, proceeding with Worksoft test execution"
+									fi
+									# To abort the request before attempting to re-run, uncomment and run below line.
+									# abort=$(curl -X PUT -H "Authorization: Bearer $token" -d "" -H "id: ${bamboo.RequestID}" ${bamboo.uri}/Request/${bamboo.RequestID}/abort/)
+									guid=$(curl -X PUT -H "Authorization: Bearer $token" -d "" -H "parameters: {TestEnv}{${bamboo.stage_name}}" -H "id: ${bamboo.RequestID}" ${bamboo.uri}/ExecuteRequest/ | tr -d \")
+									echo "The GUID is: $guid"
+									status=$(curl -X GET -H "Authorization: Bearer $token" -d "" -H "APIRequestID: $guid" ${bamboo.uri}/ExecutionStatus/ | awk -F':' '{print $2}' | tr -d \" | tr -d \})
+									echo "The status is: $status"
+									while [[ $status != *"Completed"* ]]
+									do
+									status=$(curl -X GET -H "Authorization: Bearer $token" -d "" -H "APIRequestID: $guid" ${bamboo.uri}/ExecutionStatus/ | awk -F':' '{print $2}' | tr -d \" | tr -d \})
+									echo "The status is: $status"
+									sleep 15
+									done
+									status=$(curl -X GET -H "Authorization: Bearer $token" -d "" -H "APIRequestID: $guid" ${bamboo.uri}/ExecutionStatus/)
+									echo "The status is: $status"
+									execstatus=$(curl -X GET -H "Authorization: Bearer $token" -d "" -H "APIRequestID: $guid" ${bamboo.uri}/ExecutionStatus/ | awk -F':' '{print $3}' | tr -d \" | tr -d \})
+									echo "The exec status is: $execstatus"
+									if [[ $execstatus != *Passed* ]];
+									then
+									echo "Failed"
+									exit 1
+									else
+									echo "Passed"
+									exit
+									fi
+									exit */
+								}
+							}
 						}
 					}
 				}
@@ -145,40 +193,37 @@ spec:
 						container('gradle') {
 							script {
 								withMaven(maven: 'MAVEN-3.6.3') {
-									FAILED_STAGE=env.STAGE_NAME
 									echo 'I am running Security Test here'
 								}
 							}
 						}
 					}
 				}
-			}  
-		}
+			}
+		}    
 	}
 	post {
-		always {
+  		always {
 			script {
-				/*if (propfile['javadoc'] == "true") {
+				if (propfile['javadoc'] == "true") {
 					javadoc(javadocDir: "/$WORKSPACE/target/site/apidocs", keepAll: true)
-				}*/
-			}
-		}
-		failure {
-			/*
-			mail bcc: '', 
-			body: "<b>Example</b><br>\n<br>Project: ${projectName} <br>Build Number: ${env.BUILD_NUMBER} <br> URL de build: ${env.BUILD_URL}", 
-			cc: '', 
-			charset: 'UTF-8', 
-			from: 'Jenkins', 
-			mimeType: 'text/html', 
-			replyTo: '', 
-			subject: "ERROR: Project name -> ${env.JOB_NAME}", 
-			to: "sd.gcp.ae@gmail.com
-			*/
-			echo "I am sending a notification with failure in the ${FAILED_STAGE} stage"
-		}
-		success {
-			echo 'I am sending a notification with success'
-		}
-	}
+        			}
+		  	}
+	  	}
+    		failure {
+			/*mail bcc: '', 
+			 body: "<b>Example</b><br>\n<br>Project: ${env.JOB_NAME} <br>Build Number: ${env.BUILD_NUMBER} <br> URL de build: ${env.BUILD_URL}", 
+			 cc: '', 
+			 charset: 'UTF-8', 
+			 from: '', 
+			 mimeType: 'text/html', 
+			 replyTo: '', 
+			 subject: "ERROR CI: Project name -> ${env.JOB_NAME}", 
+			 to: "foo@foomail.com";*/
+			echo 'I am sending a notification with failure'
+    		}
+	  	success {
+		  	echo 'I am sending a notification with success'
+	  	}
+  	}
 }
