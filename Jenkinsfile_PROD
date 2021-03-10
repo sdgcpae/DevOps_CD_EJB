@@ -34,6 +34,7 @@ pipeline {
 		failure {
 			script {
 				mail to: 'sd.gcp.ae@gmail.com',
+				cc: 'ernesto.alvarez@accenture.com',
             			subject: "Failed Pipeline: ${currentBuild.fullDisplayName}",
              			body: "Something is wrong with the ${projectName}-${env.GIT_BRANCH}-Branch-BuildNumber-${env.BUILD_NUMBER} in the ${FAILED_STAGE} stage.\nBuild URL: ${env.BUILD_URL}"
 			}
