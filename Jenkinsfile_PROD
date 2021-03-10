@@ -17,7 +17,7 @@ pipeline {
 				script {
 					FAILED_STAGE=env.STAGE_NAME
 					echo "Testing ${env.STAGE_NAME}"
-					exit 1
+					//exit 1
 				}
 			}
 		}
@@ -40,6 +40,7 @@ pipeline {
 		}
 		success {
 			echo 'I am sending a notification with success'
+			echo "This is the last stage recorded: ${env.STAGE_NAME}"
 		}
 	}
 }
