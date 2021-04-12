@@ -3,12 +3,16 @@ def allJob = env.JOB_NAME.tokenize('/') as String[];
 def projectName = allJob[0];
 pipeline {
 	agent any
+	environment {
+		TESTING_KEY=credentials('Test_SSH')
+	}
 	stages {
 		stage('Build') {
 			steps {
 				script {
 					FAILED_STAGE=env.STAGE_NAME
 					echo "Testing ${env.STAGE_NAME}"
+					echo $TESTING_KEY
 				}
 			}
 		}
@@ -17,7 +21,7 @@ pipeline {
 				script {
 					FAILED_STAGE=env.STAGE_NAME
 					echo "Testing ${env.STAGE_NAME}"
-					exit 1
+					//exit 1
 				}
 			}
 		}
